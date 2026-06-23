@@ -1,0 +1,16 @@
+[Unit]
+Description=Daily Todo Reminder
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__APPDIR__
+ExecStart=/usr/bin/python3 __APPDIR__/app.py
+Restart=always
+RestartSec=5
+StandardOutput=append:__APPDIR__/service.log
+StandardError=append:__APPDIR__/service.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 · 待办提醒</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="login-box">
+    <h1>待办提醒</h1>
+    <input id="pw" type="password" placeholder="登录密码" autofocus>
+    <button id="btn">进入</button>
+    <p id="err" class="err"></p>
+  </div>
+  <script>
+    async function login() {
+      const pw = document.getElementById('pw').value;
+      const r = await fetch('/login', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({password: pw})
+      });
+      if (r.ok) { location.href = '/'; }
+      else { document.getElementById('err').textContent = '密码错误'; }
+    }
+    document.getElementById('btn').onclick = login;
+    document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  </script>
+</body>
+</html>

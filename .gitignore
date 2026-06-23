@@ -1,0 +1,8 @@
+config.json
+mac_config.json
+current_port.txt
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+mac/.fired_ids.json
