@@ -34,14 +34,34 @@ body {
   text-wrap: balance;
 }
 @media (max-width: 600px) { .head h1 { font-size: 28px; } }
-.sub {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 9px 0 0;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
+.nav {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 11px 0 0;
 }
-.rule { height: 1px; background: var(--ink); margin: 18px 0 2px; }
+.nav-arrow {
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--serif); font-size: 20px; line-height: 1;
+  color: var(--muted); padding: 0 2px;
+  transition: color .15s;
+}
+.nav-arrow:hover { color: var(--ink); }
+.nav-date {
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; color: var(--ink);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.02em;
+  padding: 2px 0; text-underline-offset: 3px;
+}
+.nav-date:hover { text-decoration: underline; }
+.count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.today-reset {
+  margin-left: auto; border: 0; background: transparent; cursor: pointer;
+  font-family: var(--serif); font-size: 13px; color: var(--muted);
+  letter-spacing: 0.04em; padding: 2px 4px;
+  transition: color .15s;
+}
+.today-reset:hover { color: var(--ink); }
+.date-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.rule { height: 1px; background: var(--ink); margin: 16px 0 2px; }
 
 /* ---- add row ---- */
 .add {

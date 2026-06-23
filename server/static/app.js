@@ -1,11 +1,14 @@
 const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
-function todayStr() {
-  const d = new Date();
-  const p = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+const pad = n => String(n).padStart(2, '0');
+const fmt = dt => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+const todayStr = () => fmt(new Date());
+function shiftDate(str, days) {
+  const [y, m, d] = str.split('-').map(Number);
+  return fmt(new Date(y, m - 1, d + days));
 }
-const DATE = todayStr();
+
+let viewDate = todayStr();
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
@@ -17,26 +20,44 @@ function jsonOpts(method, body) {
   return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
 }
 
-function updateSub(todos) {
-  const d = new Date();
-  const open = todos.filter(t => !t.done).length;
-  document.getElementById('sub').textContent =
-    `${d.getMonth() + 1}月${d.getDate()}日 ${WEEK[d.getDay()]} · ${open} 项未完成`;
+function titleFor(date) {
+  const t = todayStr();
+  if (date === t) return '今日待办';
+  if (date === shiftDate(t, 1)) return '明日待办';
+  if (date === shiftDate(t, -1)) return '昨日待办';
+  const [, m, d] = date.split('-').map(Number);
+  return `${m}月${d}日待办`;
+}
+
+function dateLabel(date) {
+  const [y, m, d] = date.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  return `${m}月${d}日 ${WEEK[dow]}`;
+}
+
+function renderHeader(open) {
+  document.getElementById('heading').textContent = titleFor(viewDate);
+  document.getElementById('dateBtn').textContent = dateLabel(viewDate);
+  document.getElementById('count').textContent = `· ${open} 项未完成`;
+  document.getElementById('todayBtn').hidden = (viewDate === todayStr());
 }
 
 async function load() {
-  const data = await api(`/api/todos?date=${DATE}`);
+  const data = await api(`/api/todos?date=${viewDate}`);
   if (!data) return;
   const list = document.getElementById('list');
   list.innerHTML = '';
+  const open = data.todos.filter(t => !t.done).length;
+  renderHeader(open);
   document.getElementById('empty').hidden = data.todos.length > 0;
-  updateSub(data.todos);
   data.todos.forEach((t, i) => {
     const li = renderItem(t);
     li.style.animationDelay = `${Math.min(i, 8) * 40}ms`;
     list.appendChild(li);
   });
 }
+
+function setDate(date) { viewDate = date; load(); }
 
 function renderItem(t) {
   const li = document.createElement('li');
@@ -87,7 +108,7 @@ async function add() {
   const title = ti.value.trim();
   if (!title) return;
   const time = document.getElementById('time').value;
-  await api('/api/todos', jsonOpts('POST', { title, date: DATE, remind_at: time || null }));
+  await api('/api/todos', jsonOpts('POST', { title, date: viewDate, remind_at: time || null }));
   ti.value = '';
   document.getElementById('time').value = '';
   ti.focus();
@@ -96,4 +117,16 @@ async function add() {
 
 document.getElementById('add').onclick = add;
 document.getElementById('title').addEventListener('keydown', e => { if (e.key === 'Enter') add(); });
+document.getElementById('prev').onclick = () => setDate(shiftDate(viewDate, -1));
+document.getElementById('next').onclick = () => setDate(shiftDate(viewDate, 1));
+document.getElementById('todayBtn').onclick = () => setDate(todayStr());
+
+const datePick = document.getElementById('datePick');
+document.getElementById('dateBtn').onclick = () => {
+  datePick.value = viewDate;
+  if (datePick.showPicker) { try { datePick.showPicker(); } catch (e) { datePick.focus(); } }
+  else { datePick.focus(); }
+};
+datePick.onchange = () => { if (datePick.value) setDate(datePick.value); };
+
 load();
