@@ -89,3 +89,15 @@ def test_rollover_keeps_original_rolled_from(tmp_path):
     db.rollover_unfinished(conn, "2026-06-22", "2026-06-23")
     r = db.list_todos(conn, "2026-06-23")[0]
     assert r["rolled_from"] == "2026-06-21"
+
+
+def test_upcoming_timed_todos(tmp_path):
+    conn = make_conn(tmp_path)
+    today = db.add_todo(conn, "今天到点", "2026-06-23", remind_at="15:00")
+    future = db.add_todo(conn, "下周到点", "2026-06-30", remind_at="09:00")
+    db.add_todo(conn, "今天无时间", "2026-06-23")                       # 无到点 → 不算
+    db.add_todo(conn, "昨天到点", "2026-06-22", remind_at="10:00")      # 过去日期 → 不算
+    done = db.add_todo(conn, "未来已完成", "2026-06-30", remind_at="11:00")
+    db.set_done(conn, done, True)                                      # 已完成 → 不算
+    rows = db.upcoming_timed_todos(conn, "2026-06-23")
+    assert [r["id"] for r in rows] == [today, future]                  # 当天+未来, 按日期排序

@@ -106,7 +106,7 @@ def schedule_timed_todo(sched, conn, sendkey, todo):
 
 
 def start_scheduler(conn, cfg):
-    """启动后台调度：每日汇总、隔夜滚动，并把今天剩余的到点任务排上。"""
+    """启动后台调度：每日汇总、隔夜滚动，并把今天及以后所有未到点的单条提醒排上。"""
     sched = BackgroundScheduler(timezone=TZ)
     sendkey = cfg["serverchan_sendkey"]
 
@@ -121,7 +121,7 @@ def start_scheduler(conn, cfg):
                   id="rollover", replace_existing=True)
 
     sched.start()
-    # 排上今天还没到点的单条提醒
-    for todo in db_mod.due_timed_todos(conn, _today()):
+    # 排上今天及以后所有未到点的单条提醒（含将来日期，确保重启不丢精确提醒）
+    for todo in db_mod.upcoming_timed_todos(conn, _today()):
         schedule_timed_todo(sched, conn, sendkey, todo)
     return sched

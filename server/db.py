@@ -109,6 +109,17 @@ def due_timed_todos(conn, date):
     return [_row_to_dict(r) for r in rows]
 
 
+def upcoming_timed_todos(conn, from_date):
+    """from_date 当天及以后、有到点时间、未完成、未推送的待办。
+    用于服务重启时重排所有未来到点任务，确保将来某天的精确提醒不因重启丢失。"""
+    rows = conn.execute(
+        "SELECT * FROM todos WHERE date >= ? AND remind_at IS NOT NULL "
+        "AND done = 0 AND notified = 0 ORDER BY date ASC, remind_at ASC, id ASC",
+        (from_date,),
+    ).fetchall()
+    return [_row_to_dict(r) for r in rows]
+
+
 def rollover_unfinished(conn, from_date, to_date):
     """把 from_date 未完成的待办挪到 to_date，记录最初来源，重置 notified；
     同时清理 from_date 已完成的待办（旧日期完成项无需保留）。返回滚动条数。"""
