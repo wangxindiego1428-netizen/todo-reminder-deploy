@@ -1,15 +1,27 @@
+const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
 function todayStr() {
   const d = new Date();
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 const DATE = todayStr();
-document.getElementById('today').textContent = `${new Date().getMonth() + 1}/${new Date().getDate()}`;
 
 async function api(path, opts) {
   const r = await fetch(path, opts);
   if (r.status === 401) { location.href = '/login'; return null; }
   return r.json();
+}
+
+function jsonOpts(method, body) {
+  return { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+}
+
+function updateSub(todos) {
+  const d = new Date();
+  const open = todos.filter(t => !t.done).length;
+  document.getElementById('sub').textContent =
+    `${d.getMonth() + 1}月${d.getDate()}日 ${WEEK[d.getDay()]} · ${open} 项未完成`;
 }
 
 async function load() {
@@ -18,38 +30,67 @@ async function load() {
   const list = document.getElementById('list');
   list.innerHTML = '';
   document.getElementById('empty').hidden = data.todos.length > 0;
-  for (const t of data.todos) list.appendChild(renderItem(t));
+  updateSub(data.todos);
+  data.todos.forEach((t, i) => {
+    const li = renderItem(t);
+    li.style.animationDelay = `${Math.min(i, 8) * 40}ms`;
+    list.appendChild(li);
+  });
 }
 
 function renderItem(t) {
   const li = document.createElement('li');
   li.className = t.done ? 'item done' : 'item';
-  const cb = document.createElement('input');
-  cb.type = 'checkbox'; cb.checked = !!t.done;
-  cb.onchange = async () => { await api(`/api/todos/${t.id}/done`, jsonOpts('POST', {done: cb.checked})); load(); };
-  const span = document.createElement('span');
-  span.className = 'title';
-  const time = t.remind_at ? `${t.remind_at} ` : '';
-  const tail = t.rolled_from ? ' （往日遗留）' : '';
-  span.textContent = `${time}${t.title}${tail}`;
+
+  const time = document.createElement('span');
+  time.className = 'time';
+  time.textContent = t.remind_at || '';
+
+  const title = document.createElement('span');
+  title.className = 'title';
+  title.textContent = t.title;
+  if (t.rolled_from) {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = ' · 往日遗留';
+    title.appendChild(tag);
+  }
+
   const del = document.createElement('button');
-  del.className = 'del'; del.textContent = '✕';
-  del.onclick = async () => { await api(`/api/todos/${t.id}`, {method: 'DELETE'}); load(); };
-  li.append(cb, span, del);
+  del.type = 'button';
+  del.className = 'del';
+  del.textContent = '✕';
+  del.setAttribute('aria-label', '删除');
+  del.onclick = async () => { await api(`/api/todos/${t.id}`, { method: 'DELETE' }); load(); };
+
+  const toggle = document.createElement('span');
+  toggle.className = 'toggle';
+  toggle.setAttribute('role', 'checkbox');
+  toggle.setAttribute('aria-checked', t.done ? 'true' : 'false');
+  toggle.setAttribute('aria-label', t.title);
+  toggle.setAttribute('tabindex', '0');
+  const doToggle = async () => {
+    await api(`/api/todos/${t.id}/done`, jsonOpts('POST', { done: !t.done }));
+    load();
+  };
+  toggle.onclick = doToggle;
+  toggle.onkeydown = e => {
+    if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); doToggle(); }
+  };
+
+  li.append(time, title, del, toggle);
   return li;
 }
 
-function jsonOpts(method, body) {
-  return { method, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) };
-}
-
 async function add() {
-  const title = document.getElementById('title').value.trim();
+  const ti = document.getElementById('title');
+  const title = ti.value.trim();
   if (!title) return;
   const time = document.getElementById('time').value;
-  await api('/api/todos', jsonOpts('POST', {title, date: DATE, remind_at: time || null}));
-  document.getElementById('title').value = '';
+  await api('/api/todos', jsonOpts('POST', { title, date: DATE, remind_at: time || null }));
+  ti.value = '';
   document.getElementById('time').value = '';
+  ti.focus();
   load();
 }
 

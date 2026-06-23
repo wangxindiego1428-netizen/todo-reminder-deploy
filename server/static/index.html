@@ -3,19 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>待办提醒</title>
+  <title>今日待办</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <div class="wrap">
-    <h1>📋 今日待办 <span id="today"></span></h1>
-    <div class="add-row">
-      <input id="title" type="text" placeholder="要做什么…">
+    <header class="head">
+      <h1>今日待办</h1>
+      <p class="sub" id="sub"></p>
+    </header>
+    <div class="rule"></div>
+    <div class="add">
+      <input id="title" type="text" placeholder="添加待办…" autocomplete="off">
       <input id="time" type="time" title="可选：到点提醒时间">
-      <button id="add">添加</button>
+      <button class="addbtn" id="add">添加</button>
     </div>
     <ul id="list"></ul>
-    <p id="empty" class="muted" hidden>今天还没有待办，加一条吧。</p>
+    <p class="empty" id="empty" hidden>今天还没有待办</p>
   </div>
   <script src="/static/app.js"></script>
 </body>

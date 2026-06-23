@@ -3,22 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>登录 · 待办提醒</title>
+  <title>今日待办</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="login-box">
-    <h1>待办提醒</h1>
-    <input id="pw" type="password" placeholder="登录密码" autofocus>
-    <button id="btn">进入</button>
-    <p id="err" class="err"></p>
+  <div class="login">
+    <h1>今日待办</h1>
+    <input id="pw" type="password" placeholder="登录密码" autofocus autocomplete="current-password">
+    <button class="enter" id="btn">进 入</button>
+    <p class="err" id="err"></p>
   </div>
   <script>
     async function login() {
       const pw = document.getElementById('pw').value;
       const r = await fetch('/login', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({password: pw})
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
       });
       if (r.ok) { location.href = '/'; }
       else { document.getElementById('err').textContent = '密码错误'; }
