@@ -107,12 +107,18 @@ async function add() {
   const ti = document.getElementById('title');
   const title = ti.value.trim();
   if (!title) return;
-  const time = document.getElementById('time').value;
-  await api('/api/todos', jsonOpts('POST', { title, date: viewDate, remind_at: time || null }));
+  const when = document.getElementById('when').value;  // "YYYY-MM-DDTHH:MM" 或 ""
+  let date = viewDate, remind_at = null;
+  if (when) {
+    const [d, t] = when.split('T');
+    date = d;
+    remind_at = t ? t.slice(0, 5) : null;  // 取 HH:MM
+  }
+  await api('/api/todos', jsonOpts('POST', { title, date, remind_at }));
   ti.value = '';
-  document.getElementById('time').value = '';
+  document.getElementById('when').value = '';
   ti.focus();
-  load();
+  setDate(date);  // 跳到该待办落位的日期并刷新，便于看到它
 }
 
 document.getElementById('add').onclick = add;
