@@ -138,3 +138,52 @@ def test_run_rollover_schedules_timed_todos(tmp_path):
     assert len(db.list_todos(conn, to_date)) == 1
     # 且应注册了到点任务
     assert len(fake_sched.jobs) >= 1
+
+
+def test_fire_recurring_pushes_when_due(tmp_path, monkeypatch):
+    conn = _conn(tmp_path)
+    today = scheduler._today()
+    tid = db.add_todo(conn, "每日喝水", today, remind_at="09:00", repeat="daily")
+    rec = Recorder()
+    monkeypatch.setattr(scheduler, "push_serverchan", rec)
+    scheduler.fire_recurring(conn, "KEY", tid)
+    assert len(rec.pushes) == 1 and "每日喝水" in rec.pushes[0][1]
+
+
+def test_fire_recurring_skips_when_done_today(tmp_path, monkeypatch):
+    conn = _conn(tmp_path)
+    today = scheduler._today()
+    tid = db.add_todo(conn, "每日", today, remind_at="09:00", repeat="daily")
+    db.set_completion(conn, tid, today, True)
+    rec = Recorder()
+    monkeypatch.setattr(scheduler, "push_serverchan", rec)
+    scheduler.fire_recurring(conn, "KEY", tid)
+    assert rec.pushes == []
+
+
+def test_fire_recurring_skips_when_not_occurring(tmp_path, monkeypatch):
+    conn = _conn(tmp_path)
+    from datetime import timedelta
+    future = (datetime.now(ZoneInfo("Asia/Shanghai")) + timedelta(days=3)).strftime("%Y-%m-%d")
+    tid = db.add_todo(conn, "未来开始", future, remind_at="09:00", repeat="daily")
+    rec = Recorder()
+    monkeypatch.setattr(scheduler, "push_serverchan", rec)
+    scheduler.fire_recurring(conn, "KEY", tid)
+    assert rec.pushes == []
+
+
+def test_format_recurring():
+    title, body = scheduler.format_recurring(
+        {"title": "喝水", "remind_at": "09:00", "repeat": "daily"})
+    assert "每日" in title and "喝水" in body and "09:00" in body
+
+
+def test_schedule_recurring_registers_cron(tmp_path):
+    conn = _conn(tmp_path)
+    todo = {"id": 1, "title": "周会", "date": "2026-06-24", "remind_at": "10:00",
+            "repeat": "weekly", "done": 0, "notified": 0}
+    fake = FakeSched()
+    scheduler.schedule_recurring_todo(fake, conn, "KEY", todo)
+    assert len(fake.jobs) == 1
+    # 周三锚点 → day_of_week 应为 2（周一=0）
+    assert fake.jobs[0][1].get("day_of_week") == 2

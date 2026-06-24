@@ -97,7 +97,10 @@ def create_app(cfg, db_path):
         remind_at = d.get("remind_at") or None
         if remind_at and not _valid_remind_at(remind_at):
             return jsonify({"error": "invalid remind_at"}), 400
-        tid = db_mod.add_todo(conn, title, date, remind_at)
+        repeat = d.get("repeat") or "none"
+        if repeat not in db_mod.REPEATS:
+            return jsonify({"error": "invalid repeat"}), 400
+        tid = db_mod.add_todo(conn, title, date, remind_at, repeat)
         _reschedule(tid)
         return jsonify({"id": tid})
 
@@ -105,17 +108,27 @@ def create_app(cfg, db_path):
     @require_auth
     def set_done(tid):
         d = request.get_json(silent=True) or {}
-        db_mod.set_done(conn, tid, bool(d.get("done", True)))
+        done = bool(d.get("done", True))
+        todo = db_mod.get_todo(conn, tid)
+        if todo and todo["repeat"] != "none":
+            # 周期待办：按天记录完成
+            db_mod.set_completion(conn, tid, d.get("date") or _today(), done)
+        else:
+            db_mod.set_done(conn, tid, done)
         return jsonify({"ok": True})
 
     @app.route("/api/todos/<int:tid>", methods=["PATCH"])
     @require_auth
     def update_todo(tid):
         d = request.get_json(force=True)
-        remind_at = d.get("remind_at")
+        remind_at = d.get("remind_at") or None
         if remind_at and not _valid_remind_at(remind_at):
             return jsonify({"error": "invalid remind_at"}), 400
-        db_mod.update_todo(conn, tid, title=d.get("title"), remind_at=remind_at)
+        repeat = d.get("repeat")
+        if repeat is not None and repeat not in db_mod.REPEATS:
+            return jsonify({"error": "invalid repeat"}), 400
+        db_mod.update_todo(conn, tid, title=d.get("title"), remind_at=remind_at,
+                           date=d.get("date"), repeat=repeat)
         _reschedule(tid)
         return jsonify({"ok": True})
 
@@ -123,7 +136,19 @@ def create_app(cfg, db_path):
     @require_auth
     def delete_todo(tid):
         db_mod.delete_todo(conn, tid)
+        _unschedule(tid)
         return jsonify({"ok": True})
+
+    @app.route("/api/all", methods=["GET"])
+    @require_auth
+    def all_todos():
+        return jsonify({"todos": db_mod.all_todos(conn)})
+
+    @app.route("/overview")
+    def overview():
+        if not auth.verify_token(cfg, request.cookies.get("token")):
+            return redirect("/login")
+        return app.send_static_file("overview.html")
 
     @app.route("/api/due", methods=["GET"])
     @require_auth
@@ -145,13 +170,29 @@ def create_app(cfg, db_path):
             out.append(t)
         return jsonify({"due": out})
 
+    def _unschedule(tid):
+        sched = app.config.get("TODO_SCHED")
+        if sched is None:
+            return
+        for jid in (f"timed-{tid}", f"recur-{tid}"):
+            try:
+                sched.remove_job(jid)
+            except Exception:  # noqa: BLE001 任务不存在时忽略
+                pass
+
     def _reschedule(tid):
         sched = app.config.get("TODO_SCHED")
         if sched is None:
             return
+        _unschedule(tid)  # 先清旧任务，避免类型/时间变更后残留
         todo = db_mod.get_todo(conn, tid)
-        if todo:
-            sched_mod.schedule_timed_todo(sched, conn, cfg["serverchan_sendkey"], todo)
+        if not todo:
+            return
+        sendkey = cfg["serverchan_sendkey"]
+        if todo["repeat"] != "none":
+            sched_mod.schedule_recurring_todo(sched, conn, sendkey, todo)
+        else:
+            sched_mod.schedule_timed_todo(sched, conn, sendkey, todo)
 
     return app
 

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>总览 · 今日待办</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>总览</h1>
+      <a class="ov-link" href="/">‹ 返回</a>
+    </div>
+    <div class="rule"></div>
+    <div id="ov"></div>
+    <p class="empty" id="empty" hidden>还没有任何待办</p>
+  </div>
+  <script>
+    const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const REPEAT_CN = { daily: '每日', weekly: '每周', monthly: '每月', yearly: '每年' };
+    const pad = n => String(n).padStart(2, '0');
+    const shift = n => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+    const todayStr = () => shift(0);
+    function rel(date) {
+      if (date === todayStr()) return '今天';
+      if (date === shift(1)) return '明天';
+      if (date === shift(-1)) return '昨天';
+      if (date < todayStr()) return '已过期';
+      return '';
+    }
+    function dl(date) { const [y, m, d] = date.split('-').map(Number); return `${m}月${d}日 ${WEEK[new Date(y, m - 1, d).getDay()]}`; }
+    async function api(p) { const r = await fetch(p); if (r.status === 401) { location.href = '/login'; return null; } return r.json(); }
+
+    function groupHead(text) { const h = document.createElement('div'); h.className = 'ov-group'; h.textContent = text; return h; }
+    function makeRow(t, label, href) {
+      const d = document.createElement('div'); d.className = t.done ? 'ov-item done' : 'ov-item';
+      const time = document.createElement('span'); time.className = 'time'; time.textContent = t.remind_at || '';
+      const title = document.createElement('span'); title.className = 'title'; title.textContent = label;
+      d.append(time, title);
+      d.onclick = () => location.href = href;
+      return d;
+    }
+
+    async function load() {
+      const data = await api('/api/all'); if (!data) return;
+      const all = data.todos;
+      document.getElementById('empty').hidden = all.length > 0;
+      const ov = document.getElementById('ov'); ov.innerHTML = '';
+      const recurring = all.filter(t => t.repeat && t.repeat !== 'none');
+      const oneoff = all.filter(t => !t.repeat || t.repeat === 'none');
+      if (recurring.length) {
+        ov.appendChild(groupHead('🔁 周期待办'));
+        recurring.forEach(t => ov.appendChild(
+          makeRow(t, `${t.title}　·　${REPEAT_CN[t.repeat] || ''}`, `/?date=${todayStr()}`)));
+      }
+      let cur = null;
+      oneoff.forEach(t => {
+        if (t.date !== cur) { cur = t.date; const r = rel(t.date); ov.appendChild(groupHead(`${dl(t.date)}${r ? ' · ' + r : ''}`)); }
+        ov.appendChild(makeRow(t, t.title, `/?date=${t.date}`));
+      });
+    }
+    load();
+  </script>
+</body>
+</html>

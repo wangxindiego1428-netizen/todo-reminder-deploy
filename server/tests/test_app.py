@@ -102,3 +102,47 @@ def test_patch_todo_bad_remind_at_returns_400(tmp_path):
     r = c.patch(f"/api/todos/{tid}", json={"remind_at": "badtime"})
     assert r.status_code == 400
     assert "remind_at" in r.get_json().get("error", "")
+
+
+def test_add_recurring_and_per_date_completion(tmp_path):
+    c = make_client(tmp_path)
+    _login(c)
+    tid = c.post("/api/todos", json={"title": "每日喝水", "date": "2026-06-24",
+                                     "remind_at": "09:00", "repeat": "daily"}).get_json()["id"]
+    items = c.get("/api/todos?date=2026-06-25").get_json()["todos"]
+    rec = [t for t in items if t["id"] == tid][0]
+    assert rec["repeat"] == "daily" and rec["done"] == 0
+    # 在 6/25 勾完成（带 date）
+    assert c.post(f"/api/todos/{tid}/done", json={"done": True, "date": "2026-06-25"}).status_code == 200
+    d25 = [t for t in c.get("/api/todos?date=2026-06-25").get_json()["todos"] if t["id"] == tid][0]
+    d26 = [t for t in c.get("/api/todos?date=2026-06-26").get_json()["todos"] if t["id"] == tid][0]
+    assert d25["done"] == 1 and d26["done"] == 0   # 当天完成，次日自动回到未完成
+
+
+def test_add_invalid_repeat_returns_400(tmp_path):
+    c = make_client(tmp_path)
+    _login(c)
+    assert c.post("/api/todos", json={"title": "x", "repeat": "hourly"}).status_code == 400
+
+
+def test_patch_date_and_repeat(tmp_path):
+    c = make_client(tmp_path)
+    _login(c)
+    tid = c.post("/api/todos", json={"title": "t", "date": "2026-06-24", "remind_at": "09:00"}).get_json()["id"]
+    assert c.patch(f"/api/todos/{tid}", json={"date": "2026-06-30", "remind_at": "11:00",
+                                              "repeat": "weekly"}).status_code == 200
+    t = [x for x in c.get("/api/todos?date=2026-06-30").get_json()["todos"] if x["id"] == tid][0]
+    assert t["repeat"] == "weekly" and t["remind_at"] == "11:00"
+
+
+def test_all_endpoint_sorted(tmp_path):
+    c = make_client(tmp_path)
+    _login(c)
+    c.post("/api/todos", json={"title": "晚", "date": "2026-06-30"})
+    c.post("/api/todos", json={"title": "早", "date": "2026-06-24"})
+    assert [t["title"] for t in c.get("/api/all").get_json()["todos"]] == ["早", "晚"]
+
+
+def test_overview_requires_auth(tmp_path):
+    c = make_client(tmp_path)
+    assert c.get("/overview").status_code in (302, 308)

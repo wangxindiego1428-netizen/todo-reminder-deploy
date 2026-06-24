@@ -170,3 +170,54 @@ ul { list-style: none; margin: 0; padding: 0; }
 }
 .login .enter:hover { background: var(--ink); color: #fff; }
 .login .err { color: #a32d2d; font-size: 13px; margin-top: 18px; min-height: 1.2em; }
+
+/* ---- topbar / 总览入口 ---- */
+.topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ov-link {
+  font-family: var(--serif); font-size: 14px; color: var(--muted);
+  text-decoration: none; letter-spacing: .04em; white-space: nowrap; transition: color .15s;
+}
+.ov-link:hover { color: var(--ink); }
+
+/* ---- 重复选择（添加栏） ---- */
+.add select {
+  border: 0; background: transparent; outline: none;
+  font-family: var(--sans); font-size: 13px; color: var(--muted); cursor: pointer;
+}
+
+/* ---- 周期标记 ---- */
+.item .rep { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* ---- 行内编辑 ---- */
+.item.editing { flex-wrap: wrap; gap: 10px; align-items: center; }
+.item.editing input, .item.editing select {
+  border: 0; border-bottom: 1px solid var(--hair); background: transparent; outline: none;
+  font-family: var(--sans); font-size: 15px; color: var(--ink); padding: 4px 0;
+}
+.item .edit-title { flex: 1; min-width: 140px; }
+.item .edit-when, .item .edit-rep { font-size: 13px; color: var(--muted); }
+.item .edit-save, .item .edit-cancel {
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--serif); font-size: 14px; letter-spacing: .04em; padding: 4px 6px;
+  transition: opacity .15s;
+}
+.item .edit-save { color: var(--ink); }
+.item .edit-cancel { color: var(--muted); }
+.item .edit-save:hover, .item .edit-cancel:hover { opacity: .55; }
+
+/* ---- 总览 ---- */
+.ov-group {
+  font-family: var(--serif); font-size: 15px; color: var(--ink);
+  margin: 26px 0 2px; padding-bottom: 6px; border-bottom: 1px solid var(--ink);
+}
+.ov-group:first-child { margin-top: 14px; }
+.ov-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 0; border-bottom: 1px solid var(--hair);
+  cursor: pointer; transition: opacity .15s;
+}
+.ov-item:hover { opacity: .55; }
+.ov-item .time { flex: none; width: 46px; font-size: 13px; color: var(--time); font-variant-numeric: tabular-nums; }
+.ov-item .title { flex: 1; font-size: 15px; }
+.ov-item.done .title { color: var(--faint); text-decoration: line-through; }
+.ov-item.done .time { color: var(--faint); }

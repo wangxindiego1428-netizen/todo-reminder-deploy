@@ -9,7 +9,10 @@
 <body>
   <div class="wrap">
     <header class="head">
-      <h1 id="heading">今日待办</h1>
+      <div class="topbar">
+        <h1 id="heading">今日待办</h1>
+        <a class="ov-link" href="/overview">总览</a>
+      </div>
       <div class="nav">
         <button class="nav-arrow" id="prev" type="button" aria-label="前一天">‹</button>
         <button class="nav-date" id="dateBtn" type="button" aria-label="选择日期"></button>
@@ -23,6 +26,13 @@
     <div class="add">
       <input id="title" type="text" placeholder="添加待办…" autocomplete="off">
       <input id="when" type="datetime-local" title="可选：提醒的年月日与时间">
+      <select id="repeat" title="重复周期">
+        <option value="none">不重复</option>
+        <option value="daily">每日</option>
+        <option value="weekly">每周</option>
+        <option value="monthly">每月</option>
+        <option value="yearly">每年</option>
+      </select>
       <button class="addbtn" id="add">添加</button>
     </div>
     <ul id="list"></ul>

@@ -101,3 +101,81 @@ def test_upcoming_timed_todos(tmp_path):
     db.set_done(conn, done, True)                                      # 已完成 → 不算
     rows = db.upcoming_timed_todos(conn, "2026-06-23")
     assert [r["id"] for r in rows] == [today, future]                  # 当天+未来, 按日期排序
+
+
+def test_occurs_on_rules():
+    base = {"date": "2026-06-24"}  # 周三
+    daily = {**base, "repeat": "daily"}
+    weekly = {**base, "repeat": "weekly"}
+    monthly = {**base, "repeat": "monthly"}
+    yearly = {**base, "repeat": "yearly"}
+    oneoff = {**base, "repeat": "none"}
+    # 锚点当天都成立
+    for t in (daily, weekly, monthly, yearly, oneoff):
+        assert db.occurs_on(t, "2026-06-24")
+    # 锚点之前一律不成立
+    assert not db.occurs_on(daily, "2026-06-23")
+    # daily: 之后每天
+    assert db.occurs_on(daily, "2026-06-25")
+    # weekly: 同星期三
+    assert db.occurs_on(weekly, "2026-07-01") and not db.occurs_on(weekly, "2026-06-25")
+    # monthly: 同号(24)
+    assert db.occurs_on(monthly, "2026-07-24") and not db.occurs_on(monthly, "2026-07-25")
+    # yearly: 同月日
+    assert db.occurs_on(yearly, "2027-06-24") and not db.occurs_on(yearly, "2026-07-24")
+    # one-off: 仅当天
+    assert not db.occurs_on(oneoff, "2026-06-25")
+
+
+def test_recurring_in_todos_on_with_per_date_done(tmp_path):
+    conn = make_conn(tmp_path)
+    rid = db.add_todo(conn, "每日喝水", "2026-06-24", remind_at="09:00", repeat="daily")
+    db.add_todo(conn, "一次性会议", "2026-06-25", remind_at="14:00")
+    # 6/25 应同时出现：周期"每日喝水" + 当天一次性"会议"
+    items = db.list_todos(conn, "2026-06-25")
+    titles = {t["title"] for t in items}
+    assert titles == {"每日喝水", "一次性会议"}
+    # 6/25 把"每日喝水"勾完成 → 当天 done，但 6/26 仍未完成
+    db.set_completion(conn, rid, "2026-06-25", True)
+    by_title = {t["title"]: t for t in db.list_todos(conn, "2026-06-25")}
+    assert by_title["每日喝水"]["done"] == 1
+    assert db.list_todos(conn, "2026-06-26")[0]["done"] == 0  # 次日自动回到未完成
+    # 取消完成
+    db.set_completion(conn, rid, "2026-06-25", False)
+    assert {t["title"]: t for t in db.list_todos(conn, "2026-06-25")}["每日喝水"]["done"] == 0
+
+
+def test_recurring_excluded_from_oneoff_queries(tmp_path):
+    conn = make_conn(tmp_path)
+    db.add_todo(conn, "周期", "2026-06-24", remind_at="09:00", repeat="daily")
+    one = db.add_todo(conn, "一次性", "2026-06-24", remind_at="10:00")
+    assert [t["id"] for t in db.due_timed_todos(conn, "2026-06-24")] == [one]
+    assert [t["id"] for t in db.upcoming_timed_todos(conn, "2026-06-24")] == [one]
+    assert [t["repeat"] for t in db.recurring_todos(conn)] == ["daily"]
+
+
+def test_recurring_not_rolled(tmp_path):
+    conn = make_conn(tmp_path)
+    db.add_todo(conn, "周期", "2026-06-23", remind_at="09:00", repeat="daily")
+    one = db.add_todo(conn, "一次性遗留", "2026-06-23")
+    n = db.rollover_unfinished(conn, "2026-06-23", "2026-06-24")
+    assert n == 1  # 只滚动一次性
+    moved = db.list_todos(conn, "2026-06-24")
+    assert any(t["title"] == "一次性遗留" for t in moved)
+    # 周期项仍在其锚点、未被改日期
+    assert db.recurring_todos(conn)[0]["date"] == "2026-06-23"
+
+
+def test_update_todo_date_and_repeat(tmp_path):
+    conn = make_conn(tmp_path)
+    tid = db.add_todo(conn, "t", "2026-06-24", remind_at="09:00")
+    db.update_todo(conn, tid, date="2026-06-30", remind_at="11:00", repeat="weekly")
+    r = db.get_todo(conn, tid)
+    assert r["date"] == "2026-06-30" and r["remind_at"] == "11:00" and r["repeat"] == "weekly"
+
+
+def test_all_todos_sorted(tmp_path):
+    conn = make_conn(tmp_path)
+    db.add_todo(conn, "晚", "2026-06-30")
+    db.add_todo(conn, "早", "2026-06-24")
+    assert [t["title"] for t in db.all_todos(conn)] == ["早", "晚"]
