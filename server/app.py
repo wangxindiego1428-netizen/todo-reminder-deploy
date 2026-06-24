@@ -30,14 +30,11 @@ def _valid_remind_at(value):
 
 
 def pick_port(preferred):
-    """preferred 可用就用它；被占用或为 0 时由系统选一个空闲端口。"""
+    """配置了固定端口(非 0)就始终用它——端口钉死，保证书签 URL 永远稳定。
+    若该端口被占用，让 app.run() 明确报错(systemd 里可见、可修)，而不是悄悄漂到随机端口。
+    仅当 preferred 为 0 时才由系统自动选一个空闲端口。"""
     if preferred:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("0.0.0.0", preferred))
-                return preferred
-            except OSError:
-                log.warning("端口 %s 被占用，改用随机空闲端口", preferred)
+        return preferred
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("0.0.0.0", 0))
         return s.getsockname()[1]

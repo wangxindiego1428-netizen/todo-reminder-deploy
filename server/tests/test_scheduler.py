@@ -124,9 +124,12 @@ class FakeSched:
 def test_run_rollover_schedules_timed_todos(tmp_path):
     """run_rollover 带 sched+sendkey 时，应为滚过来的有效 timed todo 注册调度。"""
     conn = _conn(tmp_path)
-    from_date = "2026-06-22"
-    to_date = "2026-06-23"
-    # 插入一条昨天未完成、有到点时间（23:59，足够在未来）的待办
+    # 用相对今天的未来日期，避免硬编码日期随真实时间推移而失效
+    from datetime import timedelta
+    now = datetime.now(ZoneInfo("Asia/Shanghai"))
+    from_date = (now + timedelta(days=1)).strftime("%Y-%m-%d")
+    to_date = (now + timedelta(days=2)).strftime("%Y-%m-%d")
+    # to_date 在未来，remind_at 任意时间都晚于现在 → schedule_timed_todo 必会注册
     db.add_todo(conn, "滚动待办", from_date, remind_at="23:59")
     fake_sched = FakeSched()
     scheduler.run_rollover(conn, from_date=from_date, to_date=to_date,

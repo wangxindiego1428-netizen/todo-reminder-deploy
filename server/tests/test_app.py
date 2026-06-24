@@ -67,6 +67,12 @@ def test_pick_port_returns_preferred_when_free():
     assert isinstance(p, int) and p > 0
 
 
+def test_pick_port_pins_configured_port():
+    # 配了固定端口就始终返回它（钉死，不漂移），保证书签 URL 稳定
+    assert app_mod.pick_port(5005) == 5005
+    assert app_mod.pick_port(8123) == 8123
+
+
 def test_add_todo_bad_remind_at_returns_400(tmp_path):
     """POST /api/todos 传入格式错误的 remind_at 应返回 400，不创建待办。"""
     c = make_client(tmp_path)
